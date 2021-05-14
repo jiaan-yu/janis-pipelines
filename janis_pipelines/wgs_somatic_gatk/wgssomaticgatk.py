@@ -57,6 +57,9 @@ class WGSSomaticGATK(WGSSomaticGATKVariantsOnly):
         self.add_gatk_variantcaller(
             normal_bam_source=self.normal.out_bam, tumor_bam_source=self.tumor.out_bam
         )
+        self.add_addbamstats(
+            normal_bam_source=self.normal.out_bam, tumor_bam_source=self.tumor.out_bam
+        )
 
     def add_inputs(self):
         # INPUTS
@@ -262,7 +265,7 @@ if __name__ == "__main__":
         ),
     }
     # w.translate("cwl", **args)
-    w.translate("wdl", **args)
+    w.translate("wdl")
 
     # from cwltool import main
     # import logging
