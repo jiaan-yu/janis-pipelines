@@ -26,6 +26,7 @@ from janis_core import (
     WorkflowMetadata,
     InputDocumentation,
     InputQualityType,
+    StringFormatter,
 )
 from janis_core.operators.standard import FirstOperator
 from janis_unix.tools import UncompressArchive
@@ -91,6 +92,9 @@ class WGSSomaticGATKVariantsOnly(BioinformaticsWorkflow):
         self.add_gatk_variantcaller(
             normal_bam_source=self.normal_bam, tumor_bam_source=self.tumor_bam
         )
+        self.add_addbamstats(
+            normal_bam_source=self.normal_bam, tumor_bam_source=self.tumor_bam
+        )
 
     def add_inputs(self):
 
@@ -145,43 +149,48 @@ class WGSSomaticGATKVariantsOnly(BioinformaticsWorkflow):
             "known_indels": self.known_indels,
             "mills_indels": self.mills_indels,
         }
-        self.step(
-            "bqsr_normal",
-            GATKBaseRecalBQSRWorkflow_4_1_3(bam=normal_bam_source, **recal_ins),
-            scatter="intervals",
-        )
-
-        self.step(
-            "bqsr_tumor",
-            GATKBaseRecalBQSRWorkflow_4_1_3(bam=tumor_bam_source, **recal_ins),
-            scatter="intervals",
-        )
 
         self.step(
             "vc_gatk",
             GatkSomaticVariantCaller_4_1_3(
-                normal_bam=self.bqsr_normal.out,
-                tumor_bam=self.bqsr_tumor.out,
+                normal_bam=normal_bam_source,
+                tumor_bam=tumor_bam_source,
                 normal_name=self.normal_name,
-                intervals=intervals,
-                reference=self.reference,
                 gnomad=self.gnomad,
                 panel_of_normals=self.panel_of_normals,
+                **recal_ins,
             ),
-            scatter=["intervals", "normal_bam", "tumor_bam"],
         )
 
-        self.step("vc_gatk_merge", Gatk4GatherVcfs_4_1_3(vcfs=self.vc_gatk.out))
-        self.step("vc_gatk_compressvcf", BGZipLatest(file=self.vc_gatk_merge.out))
-        self.step(
-            "vc_gatk_sort_combined",
-            BcfToolsSort_1_9(vcf=self.vc_gatk_compressvcf.out.as_type(CompressedVcf)),
+        # VCF
+        self.output(
+            "out_variants_gatk",
+            source=self.vc_gatk.out,
+            output_folder=[
+                "vcfs",
+            ],
+            output_name=StringFormatter(
+                "{tumor_name}--{normal_name}_gatk",
+                tumor_name=self.tumor_name,
+                normal_name=self.normal_name,
+            ),
+            doc="Variants from the GATK caller",
         )
-        self.step(
-            "vc_gatk_uncompressvcf",
-            UncompressArchive(file=self.vc_gatk_sort_combined.out),
+        self.output(
+            "out_variants_gatk_unfiltered",
+            source=self.vc_gatk.variants,
+            output_folder=[
+                "vcfs",
+            ],
+            output_name=StringFormatter(
+                "{tumor_name}--{normal_name}_gatk_unfiltered",
+                tumor_name=self.tumor_name,
+                normal_name=self.normal_name,
+            ),
+            doc="Variants from the GATK caller (unfiltered)",
         )
 
+    def add_addbamstats(self, normal_bam_source, tumor_bam_source):
         self.step(
             "addbamstats",
             AddBamStatsSomatic_0_1_0(
@@ -190,25 +199,12 @@ class WGSSomaticGATKVariantsOnly(BioinformaticsWorkflow):
                 normal_bam=normal_bam_source,
                 tumor_bam=tumor_bam_source,
                 reference=self.reference,
-                vcf=self.vc_gatk_uncompressvcf.out.as_type(Vcf),
+                vcf=self.vc_gatk.out.as_type(Vcf),
             ),
         )
 
-        # VCF
         self.output(
-            "out_variants_gatk",
-            source=self.vc_gatk_sort_combined.out,
-            output_folder="variants",
-            doc="Merged variants from the GATK caller",
-        )
-        self.output(
-            "out_variants_split",
-            source=self.vc_gatk.out,
-            output_folder=["variants", "byInterval"],
-            doc="Unmerged variants from the GATK caller (by interval)",
-        )
-        self.output(
-            "out_variants",
+            "vcfs",
             source=self.addbamstats.out,
             output_folder="variants",
             doc="Final vcf",
@@ -256,7 +252,7 @@ if __name__ == "__main__":
             os.path.dirname(os.path.realpath(__file__)), "{language}"
         ),
     }
-    w.get_dot_plot(show=True, expand_subworkflows=True)
+    # w.get_dot_plot(show=True, expand_subworkflows=True)
     # w.translate("cwl", **args)
     # w.translate("wdl", **args)
     #
@@ -266,3 +262,4 @@ if __name__ == "__main__":
     # # op = os.path.dirname(os.path.realpath(__file__)) + "/cwl/WGSGermlineGATK.py"
     #
     # # main.run(*["--validate", op], logger_handler=logging.Handler())
+    WGSSomaticGATKVariantsOnly().translate("wdl")
