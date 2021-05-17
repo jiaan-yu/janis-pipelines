@@ -167,7 +167,7 @@ class WGSSomaticGATKVariantsOnly(BioinformaticsWorkflow):
             "out_variants_gatk",
             source=self.vc_gatk.out,
             output_folder=[
-                "vcfs",
+                "vcf",
             ],
             output_name=StringFormatter(
                 "{tumor_name}--{normal_name}_gatk",
@@ -180,7 +180,8 @@ class WGSSomaticGATKVariantsOnly(BioinformaticsWorkflow):
             "out_variants_gatk_unfiltered",
             source=self.vc_gatk.variants,
             output_folder=[
-                "vcfs",
+                "vcf",
+                "gatk",
             ],
             output_name=StringFormatter(
                 "{tumor_name}--{normal_name}_gatk_unfiltered",
