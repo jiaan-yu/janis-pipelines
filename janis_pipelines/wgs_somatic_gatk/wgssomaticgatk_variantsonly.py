@@ -19,7 +19,7 @@ from janis_bioinformatics.tools.pmac import (
     AddBamStatsSomatic_0_1_0,
     GenerateIntervalsByChromosome,
 )
-from janis_bioinformatics.tools.variantcallers import GatkSomaticVariantCaller_4_1_3
+from janis_bioinformatics.tools.variantcallers import GatkSomaticVariantCaller_4_1_3_1
 from janis_core import (
     String,
     Array,
@@ -152,7 +152,7 @@ class WGSSomaticGATKVariantsOnly(BioinformaticsWorkflow):
 
         self.step(
             "vc_gatk",
-            GatkSomaticVariantCaller_4_1_3(
+            GatkSomaticVariantCaller_4_1_3_1(
                 normal_bam=normal_bam_source,
                 tumor_bam=tumor_bam_source,
                 normal_name=self.normal_name,
